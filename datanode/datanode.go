@@ -151,24 +151,26 @@ func WriteBlock(b Block) {
 
 	list, err := ioutil.ReadDir(root)
 	h := b.Header
-	fname := h.Filename + "/" + strconv.Itoa(h.BlockNum)
+	tmf := strings.Split(h.Filename, "/")
+	Filename := "/" + tmf[len(tmf)-1]
+	fname := Filename + "/" + strconv.Itoa(h.BlockNum)
 
 	for _, dir := range list {
 
-		if "/"+dir.Name() == h.Filename {
+		if "/"+dir.Name() == Filename {
 			WriteJSON(root+fname, b)
 			log.Println("Wrote Block ", root+fname, "to disc")
 			return
 		}
 	}
 	// create directory
-	err = os.Mkdir(root+h.Filename, 0700)
+	err = os.Mkdir(root+Filename, 0700)
 	if err != nil {
 		fmt.Println("path error : ", err)
 		return
 	}
 
-	fname = h.Filename + "/" + strconv.Itoa(h.BlockNum)
+	fname = Filename + "/" + strconv.Itoa(h.BlockNum)
 	WriteJSON(root+fname, b)
 	log.Println("Wrote Block ", root+fname, "to disc")
 	return
