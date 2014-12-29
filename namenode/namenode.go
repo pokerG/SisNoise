@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
@@ -15,13 +16,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	simplejson "github.com/bitly/go-simplejson"
 )
 
 // Config Options
-var host string     // listen host
-var port string     // listen port
-var SIZEOFBLOCK int //size of block in bytes
-var id string       // the namenode id
+var host string         // listen host
+var port string         // listen port
+var SIZEOFBLOCK int     //size of block in bytes
+var id string           // the namenode id
+var metadatapath string //the meta-data directory
 
 var headerChannel chan BlockHeader   // processes headers into filesystem
 var sendChannel chan Packet          //  enqueued packets for transmission
@@ -36,6 +40,7 @@ var blockRequestorChannel chan BlockHeader // used to send block requests
 var root *filenode                             // the filesystem
 var filemap map[string](map[int][]BlockHeader) // filenames to blocknumbers to headers
 var datanodemap map[string]*datanode           // filenames to datanodes
+var fsTree *simplejson.Json                    //the File system tree
 
 // commands for node communication
 const (
@@ -47,6 +52,7 @@ const (
 	RETRIEVEBLOCK = iota // request to retrieve a Block
 	DISTRIBUTE    = iota // request to distribute a Block to a datanode
 	GETHEADERS    = iota // request to retrieve the headers of a given filename
+	MKDIR         = iota //	request create a directory
 	ERROR         = iota // notification of a failed request
 )
 
@@ -373,6 +379,7 @@ func HandlePacket(p Packet) {
 
 		case DISTRIBUTE:
 			b := p.Data
+			FSBuilding(b.Header.Filename)
 			fmt.Println("Distributing Block ", b.Header.Filename, "/", b.Header.BlockNum, " to ", b.Header.DatanodeID)
 			p, err := AssignBlock(b)
 			if err != nil {
@@ -548,6 +555,32 @@ func HandleConnection(conn net.Conn) {
 	}
 }
 
+func FSBuilding(filename string) {
+	paths := strings.Split(filename, "#")
+	changeflag := false
+	var prepath string
+	for k, v := range paths {
+		_, isExist := fsTree.CheckGet(v)
+		if !isExist {
+			changeflag = true
+			subnode, _ := fsTree.Get(prepath).Array()
+			fsTree.Set(prepath, append(subnode, v))
+			if k == len(paths)-1 {
+				fsTree.Set(v, "file")
+			} else {
+				fsTree.Set(v, new([]string))
+			}
+		}
+		prepath = v
+	}
+	if changeflag {
+		b, _ := fsTree.MarshalJSON()
+		fmt.Println(string(b))
+		ioutil.WriteFile(metadatapath+"/meta", b, 0666)
+	}
+
+}
+
 // Parse Config sets up the node with the provided XML file
 func ParseConfigXML(configpath string) error {
 	xmlFile, err := os.Open(configpath)
@@ -580,11 +613,28 @@ func ParseConfigXML(configpath string) error {
 				return errors.New("Buffer size must be greater than or equal to 4096 bytes")
 			}
 			SIZEOFBLOCK = n
+		case "metadatapath":
+			metadatapath = o.Value
 		default:
 			return errors.New("Bad ConfigOption received Key : " + o.Key + " Value : " + o.Value)
 		}
 	}
 
+	return nil
+}
+
+// Parse the struct tree of file system
+func ParseCatalogue(path string) error {
+	b, _ := ioutil.ReadFile(path)
+	var err error
+	fsTree, err = simplejson.NewJson(b)
+	if err == nil {
+
+		s, _ := fsTree.MarshalJSON()
+		fmt.Println(string(s))
+	} else {
+		log.Fatal("Fatal error ", err.Error())
+	}
 	return nil
 }
 
@@ -601,6 +651,14 @@ func Init(configpath string) {
 	// setup filesystem
 	root = &filenode{"/", nil, make([]*filenode, 0, 1)}
 	filemap = make(map[string]map[int][]BlockHeader)
+	err = os.Chdir(metadatapath)
+	if os.IsNotExist(err) {
+		os.Mkdir(metadatapath, 0700)
+		os.Create(metadatapath + "/meta")
+		os.Create(metadatapath + "/datanode")
+	} else {
+		ParseCatalogue(metadatapath + "/meta")
+	}
 
 	// setup communication
 	headerChannel = make(chan BlockHeader)
@@ -611,6 +669,7 @@ func Init(configpath string) {
 	clientMapLock = sync.Mutex{}
 
 	datanodemap = make(map[string]*datanode)
+
 }
 
 // Run starts the namenode

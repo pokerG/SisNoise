@@ -42,6 +42,7 @@ const (
 	RETRIEVEBLOCK = iota // request to retrieve a Block
 	DISTRIBUTE    = iota // request to distribute a Block to a datanode
 	GETHEADERS    = iota // request to retrieve the headers of a given filename
+	MKDIR         = iota // request create a directory
 	ERROR         = iota // notification of a failed request
 )
 
@@ -392,7 +393,12 @@ func ReceiveInput() {
 			fmt.Scan(&file1)
 			fmt.Scan(&file2)
 			localname := file1
-			remotename := file2
+			tmpfile := strings.Split(file2, "/")
+			remotename := ""
+			for _, v := range tmpfile {
+				remotename = remotename + "#" + v
+			}
+
 			_, err := os.Lstat(localname)
 			if err != nil {
 				fmt.Println("File ", localname, " could not be accessed")
