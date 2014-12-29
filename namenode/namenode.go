@@ -173,23 +173,29 @@ func New(text string) error {
 }
 
 // listFiles is a recursive helper for ListFiles
-func listFiles(node *filenode, input string) string {
+func listFiles(node string, input string, depth int) string {
 
-	input += node.path + "\n"
-	if node.children != nil {
-		for _, c := range node.children {
-			if c != nil {
-				input += "  " + listFiles(c, "")
-			}
+	pre := fsTree.Get(node)
+	s, _ := pre.String()
+	if s == "file" {
+		input = strings.Repeat(" ", depth) + node + "\n"
+		return input
+	} else {
+		input = strings.Repeat(" ", depth-1) + "-" + node + "\n"
+		arr, _ := pre.Array()
+		for _, v := range arr {
+			input += listFiles(v.(string), input, depth+1)
 		}
-
 	}
 
 	return input
+
 }
 
 func ListFiles() string {
-	return listFiles(root, "")
+	input := ""
+	input += listFiles("/", input, 1)
+	return input
 
 }
 
@@ -656,6 +662,10 @@ func Init(configpath string) {
 		os.Mkdir(metadatapath, 0700)
 		os.Create(metadatapath + "/meta")
 		os.Create(metadatapath + "/datanode")
+		jsonStr := "{\"/\":[]}"
+		fsTree, _ = simplejson.NewJson([]byte(jsonStr))
+		b, _ := fsTree.MarshalJSON()
+		ioutil.WriteFile(metadatapath+"/meta", b, 0666)
 	} else {
 		ParseCatalogue(metadatapath + "/meta")
 	}
