@@ -3,5 +3,5 @@
 	<ConfigOption key="listenhost">localhost</ConfigOption>
 	<ConfigOption key="listenport">8080</ConfigOption>
 	<ConfigOption key="sizeofblock">4096</ConfigOption>
-	<ConfigOption key="metadatapath">/home/pokerface/GoProgram/metadata</ConfigOption>
+	<ConfigOption key="metadatapath">/metadata</ConfigOption>
 </ConfigOptionList>

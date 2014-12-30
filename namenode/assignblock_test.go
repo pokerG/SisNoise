@@ -1,6 +1,7 @@
 package namenode
 
 import (
+	. "github.com/pokerG/SisNoise/common"
 	"testing"
 )
 
