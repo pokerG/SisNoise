@@ -110,19 +110,6 @@ func ContainsHeader(arr []BlockHeader, h BlockHeader) bool {
 	return false
 }
 
-type errorString struct {
-	s string
-}
-
-func (e *errorString) Error() string {
-	return e.s
-}
-
-// New returns an error that formats as the given text.
-func New(text string) error {
-	return &errorString{text}
-}
-
 // listFiles is a recursive helper for ListFiles
 func listFiles(node string, input string, depth int) string {
 
@@ -144,31 +131,26 @@ func listFiles(node string, input string, depth int) string {
 }
 
 func ListFiles(path string) string {
-	paths := strings.Split(path, "/")
-	var node string
-	if len(paths) == 2 && paths[0] == paths[1] == "" { // "/"
-		node = "/"
-	} else if paths[len(paths)-1] == "" { //"/1/2/"
-		node = paths[len(paths)-2]
-	} else {
-		node = paths[len(paths)-1] //"/1/2"
-	}
 	input := ""
-	pre := fsTree.Get(node)
+	pre := fsTree.Get(path)
 	s, _ := pre.String()
 	if s == "file" {
-		input = node + "\n"
+		input = path + "\n"
 	} else {
-		input = node + "\n"
+		input = path + "\n"
 		arr, _ := pre.Array()
 		for _, v := range arr {
-			input += "    " + arr.(string) + "\n"
+			isFile, _ := fsTree.Get(v.(string)).String()
+			paths := strings.Split(v.(string), "/")
+			if isFile == "file" {
+				input += "    " + paths[len(paths)-1] + "\n"
+			} else {
+				input += "    +" + paths[len(paths)-1] + "\n"
+			}
 		}
 	}
 	// input += listFiles("/", input, 1)
-
 	return input
-
 }
 
 // Mergenode adds a BlockHeader entry to the filesystem, in its correct location
@@ -535,9 +517,17 @@ func HandleConnection(conn net.Conn) {
 
 func FSBuilding(filename string) {
 	paths := strings.Split(filename, "#")
+	fmt.Println(paths)
 	changeflag := false
 	var prepath string
 	for k, v := range paths {
+		if prepath != "" {
+			if prepath == "/" {
+				v = prepath + v
+			} else {
+				v = prepath + "/" + v
+			}
+		}
 		_, isExist := fsTree.CheckGet(v)
 		if !isExist {
 			changeflag = true

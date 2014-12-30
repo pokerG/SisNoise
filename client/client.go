@@ -315,13 +315,10 @@ func ReceiveInput() {
 	fmt.Printf("Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list [path]\n ")
 	for {
 		fmt.Printf(">>> ")
-		var ln string
+		scanner := bufio.NewScanner(os.Stdin)
 		var cmd string
-		var file1 string
-		var file2 string
-		fmt.Scanln(&ln)
-		ln = strings.TrimSpace(ln)
-		lns := strings.Split(ln, " ")
+		scanner.Scan()
+		lns := strings.Split(strings.TrimSpace(scanner.Text()), " ")
 		cmd = lns[0]
 		if !(cmd == "put" || cmd == "get" || cmd == "list") {
 			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list [path]")
@@ -337,7 +334,10 @@ func ReceiveInput() {
 				tmpfile := strings.Split(lns[2], "/")
 				remotename := ""
 				for _, v := range tmpfile {
-					remotename = remotename + "#" + v
+					if v != "" {
+						remotename = remotename + "#" + v
+					}
+
 				}
 
 				_, err := os.Lstat(localname)
@@ -362,9 +362,11 @@ func ReceiveInput() {
 				tmpfile := strings.Split(lns[1], "/")
 				remotename := ""
 				for _, v := range tmpfile {
-					remotename = remotename + "#" + v
+					if v != "" {
+						remotename = remotename + "#" + v
+					}
 				}
-				remotename := "/" + remotename
+				remotename = "/" + remotename
 				localname := lns[2]
 				fmt.Println("Retrieving file")
 				RetrieveFile(localname, remotename)

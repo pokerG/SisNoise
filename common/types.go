@@ -1,6 +1,10 @@
 // Package common contains some common function,type and so on in SisNoise
 package common
 
+import (
+	"encoding/xml"
+)
+
 // commands for node communication
 const (
 	HB            = iota // heartbeat
@@ -36,7 +40,7 @@ type Block struct {
 type BlockHeader struct {
 	DatanodeID string // ID of datanode which holds the block
 	Filename   string //the remote name of the block including the path "/test/0"
-	Size       int64  // size of Block in bytes
+	Size       int    // size of Block in bytes
 	BlockNum   int    // the 0 indexed position of Block within file
 	NumBlocks  int    // total number of Blocks in file
 }
