@@ -6,3 +6,5 @@ go:
 
 install:
   - go get github.com/bitly/go-simplejson
+
+script: go test ./...
