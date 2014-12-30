@@ -12,9 +12,11 @@ import (
 	"fmt"
 	. "github.com/pokerG/SisNoise/common"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -258,6 +260,15 @@ func RetrieveFile(localname, remotename string) {
 	}
 
 	// setup writer
+	paths := strings.Split(localname, "/")
+	dir := ""
+	for k, v := range paths {
+		if k != len(paths)-1 {
+			dir += "/" + v
+		}
+	}
+	dir = strings.TrimPrefix(dir, "/")
+	os.MkdirAll(dir, 0777)
 	outFile, err := os.Create(localname)
 	if err != nil {
 		fmt.Println("error constructing file: ", err)
@@ -312,7 +323,7 @@ func RetrieveFile(localname, remotename string) {
 
 // ReceiveInput provides user interaction and file placement/retrieval from remote filesystem
 func ReceiveInput() {
-	fmt.Printf("Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list [path]\n ")
+	fmt.Printf("Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t list [path]\n ")
 	for {
 		fmt.Printf(">>> ")
 		scanner := bufio.NewScanner(os.Stdin)
@@ -321,14 +332,27 @@ func ReceiveInput() {
 		lns := strings.Split(strings.TrimSpace(scanner.Text()), " ")
 		cmd = lns[0]
 		if !(cmd == "put" || cmd == "get" || cmd == "list") {
-			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list [path]")
+			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t list [path]")
 			continue
 		}
 
 		switch cmd {
 		case "put":
 			if lns[1] == "-r" {
+				localcatalogue := lns[2]
+				tmpfile := strings.Split(lns[3], "/")
+				remotecatalogue := ""
+				for _, v := range tmpfile {
+					if v != "" {
+						remotecatalogue = remotecatalogue + "#" + v
+					}
 
+				}
+				err := putDir(localcatalogue, remotecatalogue)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
 			} else {
 				localname := lns[1]
 				tmpfile := strings.Split(lns[2], "/")
@@ -357,7 +381,26 @@ func ReceiveInput() {
 
 		case "get":
 			if lns[1] == "-r" {
+				localcatalogue := strings.TrimSuffix(lns[3], "/")
+				remotecatalogue := strings.TrimSuffix(lns[2], "/")
+				fmt.Println("Retrieving files")
+				files := strings.Split(RetrieveDir(remotecatalogue), "#")
+				fmt.Println("Files Number: ", len(files))
+				for _, v := range files {
+					if v == "" {
+						continue
+					}
+					remotename := ""
+					tmpfile := strings.Split(v, "/")
+					for _, vv := range tmpfile {
+						if vv != "" {
+							remotename = remotename + "#" + vv
+						}
+					}
+					remotename = "/" + remotename
 
+					RetrieveFile(localcatalogue+v, remotename)
+				}
 			} else {
 				tmpfile := strings.Split(lns[1], "/")
 				remotename := ""
@@ -383,6 +426,42 @@ func ReceiveInput() {
 		}
 	}
 
+}
+
+// RetrieveDir gets a file listing from the namenode
+func RetrieveDir(path string) string {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic ", r)
+			fmt.Println("Unable to retrieve file")
+			return
+		}
+	}()
+
+	// send header request
+	p := new(Packet)
+	p.DST = "NN"
+	p.SRC = id
+	p.CMD = DIR
+	p.Message = path
+
+	encoder.Encode(*p)
+
+	// get header list
+	var r Packet
+	decoder.Decode(&r)
+
+	if r.CMD == ERROR {
+		fmt.Println(r.Message)
+		return ""
+	}
+
+	if r.CMD != DIR {
+		fmt.Println("Bad response packet ", r)
+		return ""
+	}
+
+	return r.Message
 }
 
 // RetrieveList gets a file listing from the namenode
@@ -488,4 +567,29 @@ func CheckError(err error) {
 		fmt.Println("Fatal error ", err.Error())
 		os.Exit(1)
 	}
+}
+
+// put files in catalogue recursively
+func putDir(local string, remote string) error {
+	dirAbs, err := filepath.Abs(local)
+	if err != nil {
+		fmt.Println("111")
+		return err
+	}
+	fileInfos, err := ioutil.ReadDir(dirAbs)
+	for _, fileInfo := range fileInfos {
+		if fileInfo.IsDir() {
+			err = putDir(filepath.Join(dirAbs, fileInfo.Name()), remote+"#"+fileInfo.Name())
+			if err != nil {
+				fmt.Println("222")
+				return err
+			}
+		} else {
+			err = DistributeBlocksFromFile(filepath.Join(dirAbs, fileInfo.Name()), remote+"#"+fileInfo.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

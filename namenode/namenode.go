@@ -110,49 +110,6 @@ func ContainsHeader(arr []BlockHeader, h BlockHeader) bool {
 	return false
 }
 
-// listFiles is a recursive helper for ListFiles
-func listFiles(node string, input string, depth int) string {
-
-	pre := fsTree.Get(node)
-	s, _ := pre.String()
-	if s == "file" {
-		input = strings.Repeat(" ", depth) + node + "\n"
-		return input
-	} else {
-		input = strings.Repeat(" ", depth-1) + "-" + node + "\n"
-		arr, _ := pre.Array()
-		for _, v := range arr {
-			input += listFiles(v.(string), input, depth+1)
-		}
-	}
-
-	return input
-
-}
-
-func ListFiles(path string) string {
-	input := ""
-	pre := fsTree.Get(path)
-	s, _ := pre.String()
-	if s == "file" {
-		input = path + "\n"
-	} else {
-		input = path + "\n"
-		arr, _ := pre.Array()
-		for _, v := range arr {
-			isFile, _ := fsTree.Get(v.(string)).String()
-			paths := strings.Split(v.(string), "/")
-			if isFile == "file" {
-				input += "    " + paths[len(paths)-1] + "\n"
-			} else {
-				input += "    +" + paths[len(paths)-1] + "\n"
-			}
-		}
-	}
-	// input += listFiles("/", input, 1)
-	return input
-}
-
 // Mergenode adds a BlockHeader entry to the filesystem, in its correct location
 func MergeNode(h BlockHeader) error {
 
@@ -307,7 +264,6 @@ func WriteJSON(fileName string, key interface{}) {
 }
 
 // Handle handles a packet and performs the proper action based on its contents
-
 func HandlePacket(p Packet) {
 
 	defer func() {
@@ -331,6 +287,11 @@ func HandlePacket(p Packet) {
 		case HB:
 			fmt.Println("Received client connection", p.SRC)
 			return
+		case DIR:
+			fmt.Println("Received Dir Request")
+			r.Message = TraversalDir(p.Message)
+			r.CMD = DIR
+			fmt.Println(r)
 		case LIST:
 			fmt.Println("Received List Request")
 			r.Message = ListFiles(p.Message)
@@ -515,6 +476,77 @@ func HandleConnection(conn net.Conn) {
 	}
 }
 
+// listFiles is a recursive helper for ListFiles
+func listFiles(node string, input string, depth int) string {
+
+	pre := fsTree.Get(node)
+	s, _ := pre.String()
+	if s == "file" {
+		input = strings.Repeat(" ", depth) + node + "\n"
+		return input
+	} else {
+		input = strings.Repeat(" ", depth-1) + "-" + node + "\n"
+		arr, _ := pre.Array()
+		for _, v := range arr {
+			input += listFiles(v.(string), input, depth+1)
+		}
+	}
+
+	return input
+
+}
+
+// List the files of path
+func ListFiles(path string) string {
+	input := ""
+	pre := fsTree.Get(path)
+	s, _ := pre.String()
+	if s == "file" {
+		input = path + "\n"
+	} else {
+		input = path + "\n"
+		arr, _ := pre.Array()
+		for _, v := range arr {
+			isFile, _ := fsTree.Get(v.(string)).String()
+			paths := strings.Split(v.(string), "/")
+			if isFile == "file" {
+				input += "    " + paths[len(paths)-1] + "\n"
+			} else {
+				input += "    +" + paths[len(paths)-1] + "\n"
+			}
+		}
+	}
+	// input += listFiles("/", input, 1)
+	return input
+}
+
+func traversalDir(node string, input string) string {
+	pre := fsTree.Get(node)
+	arr, _ := pre.Array()
+	for _, v := range arr {
+		s, _ := fsTree.Get(v.(string)).String()
+		if s == "file" {
+			input += "#" + v.(string)
+		} else {
+			input = traversalDir(v.(string), input)
+		}
+
+	}
+	return input
+}
+
+func TraversalDir(path string) string {
+	pre := fsTree.Get(path)
+	if pre == nil {
+		return ""
+	}
+	input := ""
+	input += traversalDir(path, input)
+	input = strings.TrimPrefix(input, "#")
+	return input
+}
+
+// Add a new path for file to File System
 func FSBuilding(filename string) {
 	paths := strings.Split(filename, "#")
 	fmt.Println(paths)
