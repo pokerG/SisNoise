@@ -10,13 +10,13 @@ import (
 
 	"errors"
 	"fmt"
+	. "github.com/pokerG/SisNoise/common"
 	"io"
 	"log"
 	"net"
 	"os"
 	"strings"
 	"sync"
-	. "github.com/pokerG/SisNoise/common"
 )
 
 // Config Options
@@ -312,61 +312,79 @@ func RetrieveFile(localname, remotename string) {
 
 // ReceiveInput provides user interaction and file placement/retrieval from remote filesystem
 func ReceiveInput() {
-	fmt.Printf("Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list\n ")
+	fmt.Printf("Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list [path]\n ")
 	for {
 		fmt.Printf(">>> ")
+		var ln string
 		var cmd string
 		var file1 string
 		var file2 string
-		fmt.Scan(&cmd)
-
+		fmt.Scanln(&ln)
+		ln = strings.TrimSpace(ln)
+		lns := strings.Split(ln, " ")
+		cmd = lns[0]
 		if !(cmd == "put" || cmd == "get" || cmd == "list") {
-			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list")
+			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [localinput] [remoteoutput] \n \t get [remoteinput] [localoutput] \n \t list [path]")
 			continue
 		}
 
 		switch cmd {
 		case "put":
-			fmt.Scan(&file1)
-			fmt.Scan(&file2)
-			localname := file1
-			tmpfile := strings.Split(file2, "/")
-			remotename := ""
-			for _, v := range tmpfile {
-				remotename = remotename + "#" + v
+			if lns[1] == "-r" {
+
+			} else {
+				localname := lns[1]
+				tmpfile := strings.Split(lns[2], "/")
+				remotename := ""
+				for _, v := range tmpfile {
+					remotename = remotename + "#" + v
+				}
+
+				_, err := os.Lstat(localname)
+				if err != nil {
+					fmt.Println("File ", localname, " could not be accessed")
+					continue
+				}
+
+				// generate blocks from new File for distribution
+				err = DistributeBlocksFromFile(localname, remotename)
+
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
 			}
 
-			_, err := os.Lstat(localname)
-			if err != nil {
-				fmt.Println("File ", localname, " could not be accessed")
-				continue
-			}
-
-			// generate blocks from new File for distribution
-			err = DistributeBlocksFromFile(localname, remotename)
-
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
 		case "get":
-			fmt.Scan(&file1)
-			fmt.Scan(&file2)
-			remotename := file1
-			localname := file2
-			fmt.Println("Retrieving file")
-			RetrieveFile(localname, remotename)
+			if lns[1] == "-r" {
+
+			} else {
+				tmpfile := strings.Split(lns[1], "/")
+				remotename := ""
+				for _, v := range tmpfile {
+					remotename = remotename + "#" + v
+				}
+				remotename := "/" + remotename
+				localname := lns[2]
+				fmt.Println("Retrieving file")
+				RetrieveFile(localname, remotename)
+			}
 
 		case "list":
-			fmt.Println("Retrieving List")
-			RetrieveList()
+			if len(lns) == 1 {
+				RetrieveList("/")
+			} else {
+				RetrieveList(lns[1])
+			}
+			fmt.Println("Retrieving List ")
+
 		}
 	}
 
 }
 
 // RetrieveList gets a file listing from the namenode
-func RetrieveList() {
+func RetrieveList(path string) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered from panic ", r)
@@ -380,6 +398,8 @@ func RetrieveList() {
 	p.DST = "NN"
 	p.SRC = id
 	p.CMD = LIST
+	p.Message = path
+
 	encoder.Encode(*p)
 
 	// get header list

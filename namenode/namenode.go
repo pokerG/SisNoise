@@ -43,20 +43,6 @@ var filemap map[string](map[int][]BlockHeader) // filenames to blocknumbers to h
 var datanodemap map[string]*datanode           // filenames to datanodes
 var fsTree *simplejson.Json                    //the File system tree
 
-// commands for node communication
-const (
-	HB            = iota // heartbeat
-	LIST          = iota // list directorys
-	ACK           = iota // acknowledgement
-	BLOCK         = iota // handle the incoming Block
-	BLOCKACK      = iota // notifcation that Block was written to disc
-	RETRIEVEBLOCK = iota // request to retrieve a Block
-	DISTRIBUTE    = iota // request to distribute a Block to a datanode
-	GETHEADERS    = iota // request to retrieve the headers of a given filename
-	MKDIR         = iota //	request create a directory
-	ERROR         = iota // notification of a failed request
-)
-
 // filenodes compose an internal tree representation of the filesystem
 type filenode struct {
 	path     string
@@ -157,9 +143,30 @@ func listFiles(node string, input string, depth int) string {
 
 }
 
-func ListFiles() string {
+func ListFiles(path string) string {
+	paths := strings.Split(path, "/")
+	var node string
+	if len(paths) == 2 && paths[0] == paths[1] == "" { // "/"
+		node = "/"
+	} else if paths[len(paths)-1] == "" { //"/1/2/"
+		node = paths[len(paths)-2]
+	} else {
+		node = paths[len(paths)-1] //"/1/2"
+	}
 	input := ""
-	input += listFiles("/", input, 1)
+	pre := fsTree.Get(node)
+	s, _ := pre.String()
+	if s == "file" {
+		input = node + "\n"
+	} else {
+		input = node + "\n"
+		arr, _ := pre.Array()
+		for _, v := range arr {
+			input += "    " + arr.(string) + "\n"
+		}
+	}
+	// input += listFiles("/", input, 1)
+
 	return input
 
 }
@@ -344,7 +351,7 @@ func HandlePacket(p Packet) {
 			return
 		case LIST:
 			fmt.Println("Received List Request")
-			r.Message = ListFiles()
+			r.Message = ListFiles(p.Message)
 			r.CMD = LIST
 			fmt.Println(r)
 
