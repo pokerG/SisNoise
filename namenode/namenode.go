@@ -1,4 +1,4 @@
-// Package datanode contains the functionality to run a namenode in GoDFS
+// Package datanode contains the functionality to run a namenode in SisNoise
 package namenode
 
 import (
@@ -18,6 +18,7 @@ import (
 	"time"
 
 	simplejson "github.com/bitly/go-simplejson"
+	. "github.com/pokerG/SisNoise/common"
 )
 
 // Config Options
@@ -55,42 +56,6 @@ const (
 	MKDIR         = iota //	request create a directory
 	ERROR         = iota // notification of a failed request
 )
-
-// The XML parsing structures for configuration options
-type ConfigOptionList struct {
-	XMLName       xml.Name       `xml:"ConfigOptionList"`
-	ConfigOptions []ConfigOption `xml:"ConfigOption"`
-}
-
-type ConfigOption struct {
-	Key   string `xml:"key,attr"`
-	Value string `xml:",chardata"`
-}
-
-// A file is composed of one or more Blocks
-type Block struct {
-	Header BlockHeader // metadata
-	Data   []byte      // data contents
-}
-
-// BlockHeaders hold Block metadata
-type BlockHeader struct {
-	DatanodeID string // ID of datanode which holds the block
-	Filename   string //the remote name of the block including the path "/test/0"
-	Size       int    // size of Block in bytes
-	BlockNum   int    // the 0 indexed position of Block within file
-	NumBlocks  int    // total number of Blocks in file
-}
-
-// Packets are sent over the network
-type Packet struct {
-	SRC     string        // source ID
-	DST     string        // destination ID
-	CMD     int           // command for the handler
-	Message string        // optional packet contents explanation
-	Data    Block         // optional Block
-	Headers []BlockHeader // optional BlockHeader list
-}
 
 // filenodes compose an internal tree representation of the filesystem
 type filenode struct {
