@@ -467,11 +467,12 @@ func HandleConnection(conn net.Conn) {
 	for {
 		var p Packet
 		err := decoder.Decode(&p)
-		if dn == nil || dn.ID == "" {
-			fmt.Println("Client disconnected!")
-			return
-		}
+
 		if err != nil {
+			if dn == nil || dn.ID == "" {
+				fmt.Println("Client disconnected!")
+				return
+			}
 			fmt.Println("Datanode ", dn.ID, " disconnected!")
 			return
 		}

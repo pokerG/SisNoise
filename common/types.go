@@ -16,6 +16,7 @@ const (
 	DISTRIBUTE    = iota // request to distribute a Block to a datanode
 	GETHEADERS    = iota // request to retrieve the headers of a given filename
 	DIR           = iota // request traversal a directory
+	DELETE        = iota // request delete a file or directory
 	ERROR         = iota // notification of a failed request
 )
 
