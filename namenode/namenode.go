@@ -463,11 +463,14 @@ func HandleConnection(conn net.Conn) {
 	}
 	CheckConnection(conn, p)
 	dn := datanodemap[p.SRC]
-
 	// receive packets and handle
 	for {
 		var p Packet
 		err := decoder.Decode(&p)
+		if dn == nil || dn.ID == "" {
+			fmt.Println("Client disconnected!")
+			return
+		}
 		if err != nil {
 			fmt.Println("Datanode ", dn.ID, " disconnected!")
 			return
