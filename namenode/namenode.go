@@ -54,9 +54,10 @@ type filenode struct {
 // Represent connected Datanodes
 // Hold file and connection information
 type datanode struct {
-	ID     string
-	listed bool
-	size   int64
+	ID        string
+	listed    bool
+	size      int64
+	connected bool
 }
 
 // By is used to select the fields used when comparing datanodes
@@ -306,7 +307,7 @@ func HandlePacket(p Packet) {
 			FSBuilding(b.Header.Filename)
 			fmt.Println("Distributing Block ", b.Header.Filename, "/", b.Header.BlockNum, " to ", b.Header.DatanodeID)
 			for i := 0; i < backups; i++ { //set backu-up
-				b.Header.priority = i
+				b.Header.Priority = i
 				p, err := AssignBlock(b)
 				if err != nil {
 					r.CMD = ERROR
@@ -364,6 +365,7 @@ func HandlePacket(p Packet) {
 			numBlocks := blockMap[0][0].NumBlocks
 
 			headers := make([]BlockHeader, numBlocks, numBlocks)
+		hs:
 			for i, _ := range headers {
 
 				_, ok = blockMap[i]
@@ -372,7 +374,16 @@ func HandlePacket(p Packet) {
 					r.Message = "Could not find needed block in file "
 					break
 				}
-				headers[i] = blockMap[i][0] // grab the first available BlockHeader for each block number
+				for j := 0; j < backups; j++ {
+					if datanodemap[blockMap[i][j].DatanodeID].connected {
+						headers[i] = blockMap[i][j] // grab the first available BlockHeader for each block number
+						continue hs
+					}
+				}
+				r.CMD = ERROR
+				r.Message = "Could not find neededblock in file"
+				break
+
 			}
 			r.Headers = headers
 			fmt.Println("Retrieved headers ")
@@ -446,9 +457,10 @@ func CheckConnection(conn net.Conn, p Packet) {
 		dn, ok := datanodemap[p.SRC]
 		if !ok {
 			fmt.Println("Adding new datanode :", p.SRC)
-			datanodemap[p.SRC] = &datanode{p.SRC, false, 0}
+			datanodemap[p.SRC] = &datanode{p.SRC, false, 0, true}
 		} else {
 			fmt.Printf("Datanode %s reconnected \n", dn.ID)
+			dn.connected = true
 		}
 		sendMapLock.Lock()
 		sendMap[p.SRC] = json.NewEncoder(conn)
@@ -481,6 +493,7 @@ func HandleConnection(conn net.Conn) {
 				return
 			}
 			fmt.Println("Datanode ", dn.ID, " disconnected!")
+			dn.connected = false
 			return
 		}
 		HandlePacket(p)
@@ -627,7 +640,7 @@ func ParseConfigXML(configpath string) error {
 		case "metadatapath":
 			metadatapath = o.Value
 		case "backupnum":
-			backups = o.Value
+			backups, _ = strconv.Atoi(o.Value)
 
 		default:
 			return errors.New("Bad ConfigOption received Key : " + o.Key + " Value : " + o.Value)

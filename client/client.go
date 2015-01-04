@@ -94,7 +94,7 @@ func BlockHeadersFromFile(localname, remotename string) []BlockHeader {
 
 		}
 
-		h := BlockHeader{"", remotename, n, blocknum, numblocks}
+		h := BlockHeader{"", remotename, n, blocknum, numblocks, 0}
 
 		// load balance via roundrobin
 		blocknum++
@@ -164,7 +164,7 @@ func DistributeBlocksFromFile(localname, remotename string) error {
 			remotename = "/" + remotename
 		}
 
-		h := BlockHeader{"", remotename, n, num, total}
+		h := BlockHeader{"", remotename, n, num, total, 0}
 
 		data := make([]byte, 0, n)
 		data = w.Bytes()[0:n]
@@ -238,7 +238,7 @@ func RetrieveFile(localname, remotename string) {
 	p.SRC = id
 	p.CMD = GETHEADERS
 	p.Headers = make([]BlockHeader, 1, 1)
-	p.Headers[0] = BlockHeader{"", remotename, 0, 0, 0}
+	p.Headers[0] = BlockHeader{"", remotename, 0, 0, 0, 0}
 	encoder.Encode(*p)
 
 	// get header list
@@ -535,8 +535,6 @@ func ParseConfigXML(configpath string) error {
 				return errors.New("Buffer size must be greater than or equal to 4096 bytes")
 			}
 			SIZEOFBLOCK = n
-		case "backupnum":
-			backups = o.Value
 		default:
 			return errors.New("Bad ConfigOption received Key : " + o.Key + " Value : " + o.Value)
 		}

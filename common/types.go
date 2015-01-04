@@ -44,7 +44,7 @@ type BlockHeader struct {
 	Size       int    // size of Block in bytes
 	BlockNum   int    // the 0 indexed position of Block within file
 	NumBlocks  int    // total number of Blocks in file
-	priority   int    //the using priority in back-up
+	Priority   int    //the using priority in back-up
 }
 
 // Packets are sent over the network
