@@ -27,6 +27,7 @@ var port string         // listen port
 var SIZEOFBLOCK int     //size of block in bytes
 var id string           // the namenode id
 var metadatapath string //the meta-data directory
+var backups int         // the number of back-up
 
 var headerChannel chan BlockHeader   // processes headers into filesystem
 var sendChannel chan Packet          //  enqueued packets for transmission
@@ -218,6 +219,7 @@ func AssignBlock(b Block) (Packet, error) {
 		nodeIDs[i] = v.ID
 		i++
 	}
+	//ToDo Hash  & backup in different node
 	rand.Seed(time.Now().UTC().UnixNano())
 	nodeindex := rand.Intn(len(nodeIDs))
 	p.DST = nodeIDs[nodeindex]
@@ -283,6 +285,7 @@ func HandlePacket(p Packet) {
 
 	if p.SRC == "C" {
 
+	swichCmd:
 		switch p.CMD {
 		case HB:
 			fmt.Println("Received client connection", p.SRC)
@@ -302,12 +305,16 @@ func HandlePacket(p Packet) {
 			b := p.Data
 			FSBuilding(b.Header.Filename)
 			fmt.Println("Distributing Block ", b.Header.Filename, "/", b.Header.BlockNum, " to ", b.Header.DatanodeID)
-			p, err := AssignBlock(b)
-			if err != nil {
-				r.CMD = ERROR
-				r.Message = err.Error()
+			for i := 0; i < backups; i++ { //set backu-up
+				b.Header.priority = i
+				p, err := AssignBlock(b)
+				if err != nil {
+					r.CMD = ERROR
+					r.Message = err.Error()
+					break swichCmd
+				}
+				sendChannel <- p
 			}
-			sendChannel <- p
 
 			r.CMD = ACK
 		case RETRIEVEBLOCK:
@@ -619,6 +626,9 @@ func ParseConfigXML(configpath string) error {
 			SIZEOFBLOCK = n
 		case "metadatapath":
 			metadatapath = o.Value
+		case "backupnum":
+			backups = o.Value
+
 		default:
 			return errors.New("Bad ConfigOption received Key : " + o.Key + " Value : " + o.Value)
 		}

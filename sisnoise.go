@@ -6,6 +6,7 @@ import (
 	"github.com/pokerG/SisNoise/datanode"
 	"github.com/pokerG/SisNoise/namenode"
 	"os"
+	"runtime"
 )
 
 func main() {
@@ -18,7 +19,7 @@ func main() {
 
 		os.Exit(1)
 	}
-
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	cmd := os.Args[1]
 	configpath := os.Args[2]
 

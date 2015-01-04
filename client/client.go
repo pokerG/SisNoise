@@ -6,8 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"strconv"
-
 	"errors"
 	"fmt"
 	. "github.com/pokerG/SisNoise/common"
@@ -17,6 +15,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -26,6 +25,7 @@ var serverhost string                // serverhost
 var serverport string                // serverport
 var SIZEOFBLOCK int                  //size of block in bytes
 var id string                        // the namenode id
+var backups int                      // the number of back-up
 var state = HB                       // internal statemachine
 var sendChannel chan Packet          // for outbound Packets
 var receiveChannel chan Packet       // for in bound Packets
@@ -535,6 +535,8 @@ func ParseConfigXML(configpath string) error {
 				return errors.New("Buffer size must be greater than or equal to 4096 bytes")
 			}
 			SIZEOFBLOCK = n
+		case "backupnum":
+			backups = o.Value
 		default:
 			return errors.New("Bad ConfigOption received Key : " + o.Key + " Value : " + o.Value)
 		}
