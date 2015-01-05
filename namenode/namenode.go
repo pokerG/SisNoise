@@ -345,19 +345,26 @@ func HandlePacket(p Packet) {
 				break
 			}
 			fmt.Println("Remove file(s) Request")
-			for k, vv := range filemap {
+
+			for k, v := range filemap {
 				if k == filename {
-					for _, headers := range vv {
-						block := headers[0]
-						tmp, err := DeleteFiles(block)
-						if err != nil {
-							r.CMD = ERROR
-							r.Message = err.Error()
-							break swichCmd
+					for _, headers := range v {
+						for _, vv := range headers {
+							block := vv
+							if !datanodemap[block.DatanodeID].connected {
+								continue
+							}
+							tmp, err := DeleteFiles(block)
+							if err != nil {
+								r.CMD = ERROR
+								r.Message = err.Error()
+								break swichCmd
+							}
+							sendChannel <- tmp
+							r.CMD = DELETE
+							fmt.Println(r)
 						}
-						sendChannel <- tmp
-						r.CMD = DELETE
-						fmt.Println(r)
+
 					}
 				} else {
 					continue
