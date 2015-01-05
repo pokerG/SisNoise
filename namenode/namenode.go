@@ -559,10 +559,8 @@ func CheckConnection(conn net.Conn, p Packet) {
 
 //get current's datanode and write their ID to file
 func WriteToFile() {
-	cnt := 1
 	var last string = ""
 	for _, v := range datanodemap {
-		cnt++
 		if v.connected == false {
 			continue
 		}
