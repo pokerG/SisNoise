@@ -68,3 +68,5 @@ func (e *errorString) Error() string {
 func New(text string) error {
 	return &errorString{text}
 }
+
+

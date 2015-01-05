@@ -8,14 +8,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
+//	"math/rand"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+//	"time"
 
 	simplejson "github.com/bitly/go-simplejson"
 	. "github.com/pokerG/SisNoise/common"
@@ -44,6 +44,7 @@ var filemap map[string](map[int][]BlockHeader) // filenames to blocknumbers to h
 var datanodemap map[string]*datanode           // filenames to datanodes
 var fsTree *simplejson.Json                    //the File system tree
 
+var consistent *Consistent
 // filenodes compose an internal tree representation of the filesystem
 type filenode struct {
 	path     string
@@ -194,6 +195,21 @@ func AssignBlocks(bls []Block) {
 		AssignBlock(b)
 	}
 }
+//bkdhash to get an single integer implicates the data
+func BKD_Hash(c []byte)uint32{
+	var ans uint32 = 0
+	length:=len(c)
+	var i int = 0
+	for i<length {
+		ans=ans*10+(uint32)(c[i])
+		i++
+	}
+	return ans
+}
+//init of consistent 
+//func Ini_consistent(){
+//	consistent=NewConsisten();
+//}
 
 // AssignBlocks chooses a datanode which balances the load across nodes for a block and enqueues
 // the block for distribution
@@ -212,17 +228,25 @@ func AssignBlock(b Block) (Packet, error) {
 	// Create Packet and send block
 	p.SRC = id
 	p.CMD = BLOCK
-
+	consistent=NewConsisten()
+	
 	//Random load balancing
 	nodeIDs := make([]string, len(datanodemap), len(datanodemap))
 	i := 0
 	for _, v := range datanodemap {
+		if v.connected==false{
+			continue
+		}
 		nodeIDs[i] = v.ID
+		
 		i++
+		consistent.Add(v.ID)
 	}
 	//ToDo Hash  & backup in different node
-	rand.Seed(time.Now().UTC().UnixNano())
-	nodeindex := rand.Intn(len(nodeIDs))
+//	rand.Seed(time.Now().UTC().UnixNano())
+	hashid:=BKD_Hash(b.Data)
+	nodeindex:=(consistent).Search(hashid)
+//	nodeindex := rand.Intn(len(nodeIDs))
 	p.DST = nodeIDs[nodeindex]
 	b.Header.DatanodeID = p.DST
 
