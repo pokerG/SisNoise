@@ -256,10 +256,10 @@ func RemoveFile(remotename string) {
 		}
 		return
 	}
-        headers := r.Headers
-        h := headers[0]
-     	q := new(Packet)
-        q.DST = "NN"
+	headers := r.Headers
+	h := headers[0]
+	q := new(Packet)
+	q.DST = "NN"
 	q.SRC = id
 	q.CMD = DELETE
 	q.Headers = make([]BlockHeader, 1, 1)
@@ -270,19 +270,20 @@ func RemoveFile(remotename string) {
 	decoder.Decode(&rr)
 
 	if rr.CMD == ERROR {
-	fmt.Println(r.Message)
-	     return
+		fmt.Println(r.Message)
+		return
 	}
 	if rr.CMD != DELETE || rr.Headers == nil {
 		if rr.CMD == ERROR {
-		   fmt.Println(rr.Message)
-		 } else {
-                     fmt.Println("Bad response packet ", r)
-		 }
-		 return
-	 }
-         fmt.Println("Done!")
+			fmt.Println(rr.Message)
+		} else {
+			fmt.Println("Bad response packet ", r)
+		}
+		return
+	}
+	fmt.Println("Done!")
 }
+
 //.................................
 
 // RetrieveFile queries the filesystem for the File located at remotename,
@@ -387,7 +388,7 @@ func RetrieveFile(localname, remotename string) {
 
 // ReceiveInput provides user interaction and file placement/retrieval from remote filesystem
 func ReceiveInput() {
-	fmt.Printf("Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t list [path]\n rm [-r]\n remotepath")
+	fmt.Printf("Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t rm [-r] remotepath \n \t list path\n")
 	for {
 		fmt.Printf(">>> ")
 		scanner := bufio.NewScanner(os.Stdin)
@@ -396,15 +397,15 @@ func ReceiveInput() {
 		lns := strings.Split(strings.TrimSpace(scanner.Text()), " ")
 		cmd = lns[0]
 		if !(cmd == "put" || cmd == "get" || cmd == "list" || cmd == "rm") {
-			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t list [path]")
+			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t rm [-r] remotepath \n \t list path\n")
 			continue
 		}
 
 		switch cmd {
 
-    //............................................
-                case "rm":
- 			if lns[1] == "-r" {
+		//............................................
+		case "rm":
+			if lns[1] == "-r" {
 				remotecatalogue := strings.TrimSuffix(lns[2], "/")
 				fmt.Println("Retmove files")
 				files := strings.Split(RetrieveDir(remotecatalogue), "#")
@@ -422,7 +423,7 @@ func ReceiveInput() {
 					}
 					remotename = "/" + remotename
 
-					RemoveFile( remotename)
+					RemoveFile(remotename)
 				}
 			} else {
 				tmpfile := strings.Split(lns[1], "/")
@@ -436,7 +437,7 @@ func ReceiveInput() {
 				fmt.Println("Remove file")
 				RemoveFile(remotename)
 			}
-                     //.....................................
+			//.....................................
 
 		case "put":
 			if lns[1] == "-r" {

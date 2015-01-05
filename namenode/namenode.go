@@ -265,23 +265,25 @@ func WriteJSON(fileName string, key interface{}) {
 		return
 	}
 }
+
 //......................................
-func DeleteFiles(bh BlockHeader ) (Packet, error) {
+func DeleteFiles(bh BlockHeader) (Packet, error) {
 	p := new(Packet)
 
-	if &p == nil  {
+	if &p == nil {
 		return *p, errors.New("Invalid BlockHeader input")
 	}
 
 	// Create Packet and delete block
 	p.SRC = id
 	p.CMD = DELETE
-        p.DST = bh.DatanodeID
-        headers := make([]BlockHeader, 1, 1)
-        headers[0] = bh
-        p.Headers = headers
+	p.DST = bh.DatanodeID
+	headers := make([]BlockHeader, 1, 1)
+	headers[0] = bh
+	p.Headers = headers
 	return *p, nil
 }
+
 //......................................
 // Handle handles a packet and performs the proper action based on its contents
 func HandlePacket(p Packet) {
@@ -318,17 +320,17 @@ func HandlePacket(p Packet) {
 			r.Message = ListFiles(p.Message)
 			r.CMD = LIST
 			fmt.Println(r)
-         //.............................
-                case DELETE:
+			//.............................
+		case DELETE:
 			if p.Headers == nil || len(p.Headers) != 1 {
 				r.CMD = ERROR
 				r.Message = "Invalid Header received"
 				fmt.Println("Invalid RemoveFiles Packet , ", p)
 				break
 			}
-                        headers := p.Headers
-                        bh := headers[0]
-                        filename := bh.Filename
+			headers := p.Headers
+			bh := headers[0]
+			filename := bh.Filename
 			bkMap, ok := filemap[filename]
 			if !ok {
 				r.CMD = ERROR
@@ -343,17 +345,17 @@ func HandlePacket(p Packet) {
 				r.Message = "Could not locate first block in file"
 				break
 			}
-                        fmt.Println("Remove file(s) Request")
-                        tmp, err := DeleteFiles(bh)
-				if err != nil {
-					r.CMD = ERROR
-					r.Message = err.Error()
-					break swichCmd
-				}
-				sendChannel <- tmp
-                        r.CMD = DELETE
-                        fmt.Println(r)
-         //.............................
+			fmt.Println("Remove file(s) Request")
+			tmp, err := DeleteFiles(bh)
+			if err != nil {
+				r.CMD = ERROR
+				r.Message = err.Error()
+				break swichCmd
+			}
+			sendChannel <- tmp
+			r.CMD = DELETE
+			fmt.Println(r)
+			//.............................
 		case DISTRIBUTE:
 			b := p.Data
 			FSBuilding(b.Header.Filename)
@@ -629,41 +631,41 @@ func FSBuilding(filename string) {
 	changeflag := false
 	var prepath string
 	for k, v := range paths {
-                fmt.Println("k=",k)
+		fmt.Println("k=", k)
 		if prepath != "" {
 			if prepath == "/" {
-                                fmt.Println("FSbuilding,prepath ==/ ",v)
+				fmt.Println("FSbuilding,prepath ==/ ", v)
 				v = prepath + v
-                                fmt.Println("v changed to",v)
+				fmt.Println("v changed to", v)
 			} else {
-                                fmt.Println("FSbuilding,prepath !=/ ",v)
+				fmt.Println("FSbuilding,prepath !=/ ", v)
 				v = prepath + "/" + v
-                                fmt.Println("v changed to",v)
+				fmt.Println("v changed to", v)
 			}
 		}
 		_, isExist := fsTree.CheckGet(v)
 		if !isExist {
 			changeflag = true
 			subnode, _ := fsTree.Get(prepath).Array()
-   //func (j *Json) Array() ([]interface{}, error) {}
+			//func (j *Json) Array() ([]interface{}, error) {}
 			fsTree.Set(prepath, append(subnode, v))
-  //Set modifies `Json` map by `key` and `value` Useful for changing single key/value in a `Json` object easily
+			//Set modifies `Json` map by `key` and `value` Useful for changing single key/value in a `Json` object easily
 			if k == len(paths)-1 {
 				fsTree.Set(v, "file")
-                                fmt.Println("k=len(paths)-1,fsTree.Set(v, file)")
+				fmt.Println("k=len(paths)-1,fsTree.Set(v, file)")
 			} else {
 				fsTree.Set(v, new([]string))
-                                fmt.Println("k=len(paths)-1,fsTree.Set(v, new([]string))")
+				fmt.Println("k=len(paths)-1,fsTree.Set(v, new([]string))")
 			}
 		}
 		prepath = v
-                fmt.Println("prepath changed to be",prepath)
+		fmt.Println("prepath changed to be", prepath)
 	}
 	if changeflag {
 		b, _ := fsTree.MarshalJSON()
 		fmt.Println(string(b))
 		ioutil.WriteFile(metadatapath+"/meta", b, 0666)
-//WriteFile writes data to a file named by filename. If the file does not exist, WriteFile creates it with permissions perm; otherwise WriteFile truncates it before writing. 
+		//WriteFile writes data to a file named by filename. If the file does not exist, WriteFile creates it with permissions perm; otherwise WriteFile truncates it before writing.
 	}
 
 }
