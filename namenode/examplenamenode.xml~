@@ -4,5 +4,5 @@
 	<ConfigOption key="listenport">8080</ConfigOption>
 	<ConfigOption key="sizeofblock">4096</ConfigOption>
 	<ConfigOption key="metadatapath">/metadata</ConfigOption>
-	<ConfigOption key="backupnum">2</ConfigOption>
+	<ConfigOption key="backupnum">1</ConfigOption>
 </ConfigOptionList>

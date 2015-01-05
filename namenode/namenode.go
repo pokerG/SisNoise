@@ -273,7 +273,6 @@ func DeleteFiles(bh BlockHeader) (Packet, error) {
 	if &p == nil {
 		return *p, errors.New("Invalid BlockHeader input")
 	}
-
 	// Create Packet and delete block
 	p.SRC = id
 	p.CMD = DELETE
@@ -346,15 +345,24 @@ func HandlePacket(p Packet) {
 				break
 			}
 			fmt.Println("Remove file(s) Request")
-			tmp, err := DeleteFiles(bh)
-			if err != nil {
-				r.CMD = ERROR
-				r.Message = err.Error()
-				break swichCmd
-			}
-			sendChannel <- tmp
-			r.CMD = DELETE
-			fmt.Println(r)
+                        for k,vv := range filemap {
+                            if k==filename { 
+                                for _,headers := range vv{
+                                         block := headers[0]
+                  		         tmp, err := DeleteFiles(block)
+			                 if err != nil {
+				         r.CMD = ERROR
+				         r.Message = err.Error()
+				         break swichCmd
+			                 }
+			            sendChannel <- tmp
+			            r.CMD = DELETE
+			            fmt.Println(r)
+                                }
+                            }else{
+                               continue
+                            }
+                        }
 			//.............................
 		case DISTRIBUTE:
 			b := p.Data

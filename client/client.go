@@ -257,31 +257,32 @@ func RemoveFile(remotename string) {
 		return
 	}
 	headers := r.Headers
-	h := headers[0]
-	q := new(Packet)
-	q.DST = "NN"
-	q.SRC = id
-	q.CMD = DELETE
-	q.Headers = make([]BlockHeader, 1, 1)
-	q.Headers[0] = h
-	encoder.Encode(*q)
+        for _, h := range headers {
+	    q := new(Packet)
+	    q.DST = "NN"
+	    q.SRC = id
+	    q.CMD = DELETE
+	    q.Headers = make([]BlockHeader, 1, 1)
+	    q.Headers[0] = h
+	    encoder.Encode(*q)
 
-	var rr Packet
-	decoder.Decode(&rr)
+	    var rr Packet
+	    decoder.Decode(&rr)
 
-	if rr.CMD == ERROR {
+	    if rr.CMD == ERROR {
 		fmt.Println(r.Message)
 		return
-	}
-	if rr.CMD != DELETE || rr.Headers == nil {
+	    }
+	    if rr.CMD != DELETE || rr.Headers == nil {
 		if rr.CMD == ERROR {
 			fmt.Println(rr.Message)
 		} else {
 			fmt.Println("Bad response packet ", r)
 		}
 		return
-	}
-	fmt.Println("Done!")
+	    }
+	    fmt.Println("Done!")
+        }
 }
 
 //.................................
