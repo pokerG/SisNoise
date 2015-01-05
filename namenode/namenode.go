@@ -206,10 +206,6 @@ func BKD_Hash(c []byte)uint32{
 	}
 	return ans
 }
-//init of consistent 
-//func Ini_consistent(){
-//	consistent=NewConsisten();
-//}
 
 // AssignBlocks chooses a datanode which balances the load across nodes for a block and enqueues
 // the block for distribution
@@ -225,10 +221,8 @@ func AssignBlock(b Block) (Packet, error) {
 		return *p, errors.New("Cannot distribute Block, no datanodes are connected")
 	}
 
-	// Create Packet and send block
 	p.SRC = id
 	p.CMD = BLOCK
-	consistent=NewConsisten()
 	
 	//Random load balancing
 	nodeIDs := make([]string, len(datanodemap), len(datanodemap))
@@ -238,9 +232,8 @@ func AssignBlock(b Block) (Packet, error) {
 			continue
 		}
 		nodeIDs[i] = v.ID
-		
 		i++
-		consistent.Add(v.ID)
+	//	consistent.Add(v.ID)
 	}
 	//ToDo Hash  & backup in different node
 //	rand.Seed(time.Now().UTC().UnixNano())
@@ -490,6 +483,7 @@ func CheckConnection(conn net.Conn, p Packet) {
 		sendMap[p.SRC] = json.NewEncoder(conn)
 		sendMapLock.Unlock()
 		dn = datanodemap[p.SRC]
+		consistent.Add(dn.ID)
 	}
 	HandlePacket(p)
 }
@@ -518,6 +512,9 @@ func HandleConnection(conn net.Conn) {
 			}
 			fmt.Println("Datanode ", dn.ID, " disconnected!")
 			dn.connected = false
+
+			consistent.Remove(dn.ID)
+
 			return
 		}
 		HandlePacket(p)
@@ -698,7 +695,7 @@ func Init(configpath string) {
 	if err != nil {
 		log.Fatal("Fatal error ", err.Error())
 	}
-
+	consistent = NewConsisten();
 	// setup filesystem
 	root = &filenode{"/", nil, make([]*filenode, 0, 1)}
 	filemap = make(map[string]map[int][]BlockHeader)
