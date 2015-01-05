@@ -212,7 +212,6 @@ func BKD_Hash(c []byte) uint32 {
 // the block for distribution
 func AssignBlock(b Block) (Packet, error) {
 	p := new(Packet)
-
 	if &b == nil || &b.Header == nil || &b.Data == nil || b.Header.Filename == "" ||
 		b.Header.Size <= 0 || b.Header.BlockNum < 0 || b.Header.NumBlocks <= b.Header.BlockNum {
 		return *p, errors.New("Invalid Block input")
@@ -247,7 +246,11 @@ func AssignBlock(b Block) (Packet, error) {
 	b.Header.DatanodeID = p.DST
 
 	p.Data = Block{b.Header, b.Data}
-
+//	p1:=p
+//	p2:=p
+//	fmt.Println(len(datanodemap))
+//	p1.DST=nodeIDs[(nodeindex+b.Header.Priority+1)%len(datanodemap)]
+//	p2.DST=nodeIDs[(nodeindex+b.Header.Priority+2)%len(datanodemap)]
 	return *p, nil
 
 }
@@ -501,7 +504,7 @@ func WriteToFile(){
 //			err=os.Remove(metadatapath+"/datanode1")
 //			fin,err=os.Create(metadatapath+"/datanode1")
 //		}
-		cnt:=1
+		cnt:=0
 		var last string = ""
 		for _,v:= range datanodemap {
 			cnt++
