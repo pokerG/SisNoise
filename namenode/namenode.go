@@ -345,24 +345,25 @@ func HandlePacket(p Packet) {
 				break
 			}
 			fmt.Println("Remove file(s) Request")
-                        for k,vv := range filemap {
-                            if k==filename { 
-                                for _,headers := range vv{
-                                         block := headers[0]
-                  		         tmp, err := DeleteFiles(block)
-			                 if err != nil {
-				         r.CMD = ERROR
-				         r.Message = err.Error()
-				         break swichCmd
-			                 }
-			            sendChannel <- tmp
-			            r.CMD = DELETE
-			            fmt.Println(r)
-                                }
-                            }else{
-                               continue
-                            }
-                        }
+			for k, vv := range filemap {
+				if k == filename {
+					for _, headers := range vv {
+						block := headers[0]
+						tmp, err := DeleteFiles(block)
+						if err != nil {
+							r.CMD = ERROR
+							r.Message = err.Error()
+							break swichCmd
+						}
+						sendChannel <- tmp
+						r.CMD = DELETE
+						fmt.Println(r)
+					}
+				} else {
+					continue
+				}
+			}
+			FSDelete(filename)
 			//.............................
 		case DISTRIBUTE:
 			b := p.Data
@@ -584,6 +585,7 @@ func listFiles(node string, input string, depth int) string {
 
 // List the files of path
 func ListFiles(path string) string {
+	ParseCatalogue(metadatapath + "/meta")
 	input := ""
 	pre := fsTree.Get(path)
 	s, _ := pre.String()
@@ -632,6 +634,49 @@ func TraversalDir(path string) string {
 	return input
 }
 
+// delete file in File System if it's updirectory is null delete it
+func FSDelete(filename string) {
+	paths := strings.Split(filename, "#")
+	path := strings.Join(paths[1:len(paths)], "/")
+	path = "/" + path
+
+	delflag := false
+	for i := len(paths) - 1; i >= 0; i-- {
+		ParseCatalogue(metadatapath + "/meta")
+		if i == len(paths)-1 {
+			v := path
+			_, isExist := fsTree.CheckGet(v)
+			if isExist {
+				fsTree.Del(v)
+				delflag = true
+				b, _ := fsTree.MarshalJSON()
+				ioutil.WriteFile(metadatapath+"/meta", b, 0666)
+			}
+		} else {
+			prepath := path
+			path = strings.Join(paths[1:i+1], "/")
+			path = "/" + path
+			if delflag {
+				subnode, _ := fsTree.Get(path).Array()
+				var arr []string
+				for _, x := range subnode {
+					if x != prepath {
+						arr = append(arr, x.(string))
+					}
+					fsTree.Set(path, arr)
+					delflag = false
+					if len(arr) == 0 && path != "/" {
+						fsTree.Del(path)
+						delflag = true
+					}
+					b, _ := fsTree.MarshalJSON()
+					ioutil.WriteFile(metadatapath+"/meta", b, 0666)
+				}
+			}
+		}
+	}
+}
+
 // Add a new path for file to File System
 func FSBuilding(filename string) {
 	paths := strings.Split(filename, "#")
@@ -655,9 +700,7 @@ func FSBuilding(filename string) {
 		if !isExist {
 			changeflag = true
 			subnode, _ := fsTree.Get(prepath).Array()
-			//func (j *Json) Array() ([]interface{}, error) {}
 			fsTree.Set(prepath, append(subnode, v))
-			//Set modifies `Json` map by `key` and `value` Useful for changing single key/value in a `Json` object easily
 			if k == len(paths)-1 {
 				fsTree.Set(v, "file")
 				fmt.Println("k=len(paths)-1,fsTree.Set(v, file)")
@@ -673,7 +716,7 @@ func FSBuilding(filename string) {
 		b, _ := fsTree.MarshalJSON()
 		fmt.Println(string(b))
 		ioutil.WriteFile(metadatapath+"/meta", b, 0666)
-		//WriteFile writes data to a file named by filename. If the file does not exist, WriteFile creates it with permissions perm; otherwise WriteFile truncates it before writing.
+
 	}
 
 }
