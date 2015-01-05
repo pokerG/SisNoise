@@ -1,5 +1,6 @@
 <ConfigOptionList>
+	<ConfigOption key="id">C1</ConfigOption>
 	<ConfigOption key="serverhost">localhost</ConfigOption>
 	<ConfigOption key="serverport">8080</ConfigOption>
-	<ConfigOption key="sizeofblock">4096</ConfigOption>
+	<ConfigOption key="sizeofblock">1048576</ConfigOption>
 </ConfigOptionList>

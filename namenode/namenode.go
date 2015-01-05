@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ var sendMap map[string]*json.Encoder // maps DatanodeIDs to their connections
 var sendMapLock sync.Mutex
 var clientMap map[BlockHeader]string // maps requested Blocks to the client ID which requested them, based on Blockheader
 var clientMapLock sync.Mutex
+var client Client
 
 var blockReceiverChannel chan Block        // used to fetch blocks on user request
 var blockRequestorChannel chan BlockHeader // used to send block requests
@@ -43,6 +45,11 @@ var datanodemap map[string]*datanode           // filenames to datanodes
 var fsTree *simplejson.Json                    //the File system tree
 
 var consistent *Consistent
+
+type Client struct {
+	id    string
+	using bool
+}
 
 // filenodes compose an internal tree representation of the filesystem
 type filenode struct {
@@ -236,11 +243,9 @@ func AssignBlock(b Block) (Packet, error) {
 		i++
 		//	consistent.Add(v.ID)
 	}
-	//ToDo Hash  & backup in different node
-	//	rand.Seed(time.Now().UTC().UnixNano())
+
 	hashid := BKD_Hash(b.Data)
 	nodeindex := (consistent).Search(hashid)
-	//	nodeindex := rand.Intn(len(nodeIDs))
 	p.DST = nodeIDs[(nodeindex+b.Header.Priority)%len(datanodemap)]
 	b.Header.DatanodeID = p.DST
 
@@ -316,25 +321,37 @@ func HandlePacket(p Packet) {
 		return
 	}
 
+	clientflag := false
 	r := Packet{id, p.SRC, ACK, "", *new(Block), make([]BlockHeader, 0)}
 
-	if p.SRC == "C" {
+	if strings.Index(p.SRC, "C") == 0 {
+		for client.using && client.id != p.SRC {
+			runtime.Gosched()
+		}
+
+		clientMapLock.Lock()
+		client.id = p.SRC
+		client.using = true
+		clientMapLock.Unlock()
 
 	swichCmd:
 		switch p.CMD {
 		case HB:
 			fmt.Println("Received client connection", p.SRC)
+			client.using = false
 			return
 		case DIR:
 			fmt.Println("Received Dir Request")
 			r.Message = TraversalDir(p.Message)
 			r.CMD = DIR
 			fmt.Println(r)
+			clientflag = true
 		case LIST:
 			fmt.Println("Received List Request")
 			r.Message = ListFiles(p.Message)
 			r.CMD = LIST
 			fmt.Println(r)
+			clientflag = true
 		case DELETE:
 			if p.Headers == nil || len(p.Headers) != 1 {
 				r.CMD = ERROR
@@ -395,12 +412,16 @@ func HandlePacket(p Packet) {
 				if err != nil {
 					r.CMD = ERROR
 					r.Message = err.Error()
+					clientflag = true
 					break swichCmd
 				}
 				sendChannel <- p
 			}
 
 			r.CMD = ACK
+			if b.Header.BlockNum == b.Header.NumBlocks-1 {
+				clientflag = true
+			}
 		case RETRIEVEBLOCK:
 			r.CMD = RETRIEVEBLOCK
 			if p.Headers == nil || len(p.Headers) != 1 {
@@ -420,6 +441,7 @@ func HandlePacket(p Packet) {
 			clientMapLock.Unlock()
 
 		case GETHEADERS:
+			clientflag = true
 			r.CMD = GETHEADERS
 			if p.Headers == nil || len(p.Headers) != 1 {
 				r.CMD = ERROR
@@ -515,13 +537,19 @@ func HandlePacket(p Packet) {
 			//	fmt.Println("Header not found in clientMap  ", p.Data.Header)
 			//  return
 			//}
-			r.DST = "C"
+			r.DST = client.id
 			r.CMD = BLOCK
 			r.Data = p.Data
+			if p.Data.Header.BlockNum == p.Data.Header.NumBlocks-1 {
+				clientflag = true
+			}
 
 		}
 	}
 
+	if clientflag {
+		client.using = false
+	}
 	// send response
 	sendChannel <- r
 
@@ -531,7 +559,7 @@ func HandlePacket(p Packet) {
 func CheckConnection(conn net.Conn, p Packet) {
 
 	// C is the client(hardcode for now)
-	if p.SRC == "C" {
+	if strings.Index(p.SRC, "C") == 0 {
 		fmt.Println("Adding new client connection")
 		sendMapLock.Lock()
 		sendMap[p.SRC] = json.NewEncoder(conn)
@@ -568,7 +596,7 @@ func WriteToFile() {
 		last = last + tmp
 		fmt.Println("write datanode:" + tmp)
 	}
-	ioutil.WriteFile(metadatapath+"/datanode1", []byte(last), 0666)
+	ioutil.WriteFile(metadatapath+"/datanode", []byte(last), 0666)
 }
 
 // Handle Connection initializes the connection and performs packet retrieval
@@ -855,6 +883,7 @@ func Init(configpath string) {
 	sendMapLock = sync.Mutex{}
 	clientMap = make(map[BlockHeader]string)
 	clientMapLock = sync.Mutex{}
+	client.using = false
 
 	datanodemap = make(map[string]*datanode)
 

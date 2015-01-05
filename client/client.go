@@ -279,8 +279,9 @@ func RemoveFile(remotename string) {
 			}
 			return
 		}
-		fmt.Println("Done!")
+		fmt.Printf(".")
 	}
+	fmt.Println("Done!")
 }
 
 // RetrieveFile queries the filesystem for the File located at remotename,
@@ -613,8 +614,8 @@ func ParseConfigXML(configpath string) error {
 
 		switch o.Key {
 		// single client for now
-		//	case "id":
-		//		id = o.Value
+		case "id":
+			id = o.Value
 		case "serverhost":
 			serverhost = o.Value
 		case "serverport":
@@ -642,7 +643,6 @@ func Run(configpath string) {
 
 	ParseConfigXML(configpath)
 
-	id = "C"
 	conn, err := net.Dial("tcp", serverhost+":"+serverport)
 	CheckError(err)
 
@@ -650,7 +650,7 @@ func Run(configpath string) {
 	decoder = json.NewDecoder(conn)
 
 	// Start communication
-	//	SendHeartbeat()
+	SendHeartbeat()
 	ReceiveInput()
 
 	os.Exit(0)
