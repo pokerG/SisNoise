@@ -293,6 +293,22 @@ func WriteJSON(fileName string, key interface{}) {
 	}
 }
 
+func DeleteFiles(bh BlockHeader) (Packet, error) {
+	p := new(Packet)
+
+	if &p == nil {
+		return *p, errors.New("Invalid BlockHeader input")
+	}
+	// Create Packet and delete block
+	p.SRC = id
+	p.CMD = DELETE
+	p.DST = bh.DatanodeID
+	headers := make([]BlockHeader, 1, 1)
+	headers[0] = bh
+	p.Headers = headers
+	return *p, nil
+}
+
 // Handle handles a packet and performs the proper action based on its contents
 func HandlePacket(p Packet) {
 
@@ -328,7 +344,50 @@ func HandlePacket(p Packet) {
 			r.Message = ListFiles(p.Message)
 			r.CMD = LIST
 			fmt.Println(r)
+		case DELETE:
+			if p.Headers == nil || len(p.Headers) != 1 {
+				r.CMD = ERROR
+				r.Message = "Invalid Header received"
+				fmt.Println("Invalid RemoveFiles Packet , ", p)
+				break
+			}
+			headers := p.Headers
+			bh := headers[0]
+			filename := bh.Filename
+			bkMap, ok := filemap[filename]
+			if !ok {
+				r.CMD = ERROR
+				r.Message = "File not found " + filename
+				fmt.Println("Requested file in filesystem not found, ", filename)
+				break
+			}
 
+			_, ok = bkMap[0]
+			if !ok {
+				r.CMD = ERROR
+				r.Message = "Could not locate first block in file"
+				break
+			}
+			fmt.Println("Remove file(s) Request")
+			for k, vv := range filemap {
+				if k == filename {
+					for _, headers := range vv {
+						block := headers[0]
+						tmp, err := DeleteFiles(block)
+						if err != nil {
+							r.CMD = ERROR
+							r.Message = err.Error()
+							break swichCmd
+						}
+						sendChannel <- tmp
+						r.CMD = DELETE
+						fmt.Println(r)
+					}
+				} else {
+					continue
+				}
+			}
+			FSDelete(filename)
 		case DISTRIBUTE:
 			b := p.Data
 			FSBuilding(b.Header.Filename)
@@ -595,6 +654,49 @@ func TraversalDir(path string) string {
 	input += traversalDir(path, input)
 	input = strings.TrimPrefix(input, "#")
 	return input
+}
+
+// delete file in File System if it's updirectory is null delete it
+func FSDelete(filename string) {
+	paths := strings.Split(filename, "#")
+	path := strings.Join(paths[1:len(paths)], "/")
+	path = "/" + path
+
+	delflag := false
+	for i := len(paths) - 1; i >= 0; i-- {
+		ParseCatalogue(metadatapath + "/meta")
+		if i == len(paths)-1 {
+			v := path
+			_, isExist := fsTree.CheckGet(v)
+			if isExist {
+				fsTree.Del(v)
+				delflag = true
+				b, _ := fsTree.MarshalJSON()
+				ioutil.WriteFile(metadatapath+"/meta", b, 0666)
+			}
+		} else {
+			prepath := path
+			path = strings.Join(paths[1:i+1], "/")
+			path = "/" + path
+			if delflag {
+				subnode, _ := fsTree.Get(path).Array()
+				var arr []string
+				for _, x := range subnode {
+					if x != prepath {
+						arr = append(arr, x.(string))
+					}
+					fsTree.Set(path, arr)
+					delflag = false
+					if len(arr) == 0 && path != "/" {
+						fsTree.Del(path)
+						delflag = true
+					}
+					b, _ := fsTree.MarshalJSON()
+					ioutil.WriteFile(metadatapath+"/meta", b, 0666)
+				}
+			}
+		}
+	}
 }
 
 // Add a new path for file to File System

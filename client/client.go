@@ -221,6 +221,68 @@ func DistributeBlocks(blocks []Block) error {
 	return nil
 }
 
+func RemoveFile(remotename string) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic ", r)
+			fmt.Println("Unable to remove file")
+			return
+		}
+	}()
+	// send header request to check up whether the header exist.
+	p := new(Packet)
+	p.DST = "NN"
+	p.SRC = id
+	p.CMD = GETHEADERS
+	p.Headers = make([]BlockHeader, 1, 1)
+	p.Headers[0] = BlockHeader{"", remotename, 0, 0, 0, 0}
+	encoder.Encode(*p)
+
+	// get header list
+	var r Packet
+	decoder.Decode(&r)
+
+	if r.CMD == ERROR {
+		fmt.Println(r.Message)
+		return
+	}
+	if r.CMD != GETHEADERS || r.Headers == nil {
+		if r.CMD == ERROR {
+			fmt.Println(r.Message)
+		} else {
+			fmt.Println("Bad response packet ", r)
+		}
+		return
+	}
+	headers := r.Headers
+	for _, h := range headers {
+		q := new(Packet)
+		q.DST = "NN"
+		q.SRC = id
+		q.CMD = DELETE
+		q.Headers = make([]BlockHeader, 1, 1)
+		q.Headers[0] = h
+		encoder.Encode(*q)
+
+		var rr Packet
+		decoder.Decode(&rr)
+
+		if rr.CMD == ERROR {
+			fmt.Println(r.Message)
+			return
+		}
+		if rr.CMD != DELETE || rr.Headers == nil {
+			if rr.CMD == ERROR {
+				fmt.Println(rr.Message)
+			} else {
+				fmt.Println("Bad response packet ", r)
+			}
+			return
+		}
+		fmt.Println("Done!")
+	}
+}
+
 // RetrieveFile queries the filesystem for the File located at remotename,
 // and saves its contents to the file localname
 func RetrieveFile(localname, remotename string) {
@@ -323,7 +385,7 @@ func RetrieveFile(localname, remotename string) {
 
 // ReceiveInput provides user interaction and file placement/retrieval from remote filesystem
 func ReceiveInput() {
-	fmt.Printf("Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t list [path]\n ")
+	fmt.Printf("Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t rm [-r] remotepath \n \t list path\n")
 	for {
 		fmt.Printf(">>> ")
 		scanner := bufio.NewScanner(os.Stdin)
@@ -331,8 +393,8 @@ func ReceiveInput() {
 		scanner.Scan()
 		lns := strings.Split(strings.TrimSpace(scanner.Text()), " ")
 		cmd = lns[0]
-		if !(cmd == "put" || cmd == "get" || cmd == "list") {
-			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t list [path]")
+		if !(cmd == "put" || cmd == "get" || cmd == "list" || cmd == "rm") {
+			fmt.Printf("Incorrect command\n Valid Commands: \n \t put [-r] localinput remoteoutput \n \t get [-r] remoteinput localoutput \n \t rm [-r] remotepath \n \t list path\n")
 			continue
 		}
 
@@ -414,7 +476,39 @@ func ReceiveInput() {
 				fmt.Println("Retrieving file")
 				RetrieveFile(localname, remotename)
 			}
+		case "rm":
+			if lns[1] == "-r" {
+				remotecatalogue := strings.TrimSuffix(lns[2], "/")
+				fmt.Println("Retmove files")
+				files := strings.Split(RetrieveDir(remotecatalogue), "#")
+				fmt.Println("Files Number: ", len(files))
+				for _, v := range files {
+					if v == "" {
+						continue
+					}
+					remotename := ""
+					tmpfile := strings.Split(v, "/")
+					for _, vv := range tmpfile {
+						if vv != "" {
+							remotename = remotename + "#" + vv
+						}
+					}
+					remotename = "/" + remotename
 
+					RemoveFile(remotename)
+				}
+			} else {
+				tmpfile := strings.Split(lns[1], "/")
+				remotename := ""
+				for _, v := range tmpfile {
+					if v != "" {
+						remotename = remotename + "#" + v
+					}
+				}
+				remotename = "/" + remotename
+				fmt.Println("Remove file")
+				RemoveFile(remotename)
+			}
 		case "list":
 			if len(lns) == 1 {
 				RetrieveList("/")

@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	. "github.com/pokerG/SisNoise/common"
 	"io/ioutil"
 	"log"
 	"net"
@@ -13,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	. "github.com/pokerG/SisNoise/common"
 )
 
 // Config Options
@@ -68,7 +68,16 @@ func HandleResponse(p Packet, encoder *json.Encoder) {
 		WriteBlock(p.Data)
 		r.Headers = make([]BlockHeader, 0, 2)
 		r.Headers = append(r.Headers, p.Data.Header)
-
+	case DELETE:
+		r.CMD = DELETE
+		headers := p.Headers
+		bh := headers[0]
+		filename := root + bh.Filename
+		err := os.RemoveAll(filename)
+		if err != nil {
+			fmt.Println("Error delete file! ", err)
+			return
+		}
 	case RETRIEVEBLOCK:
 		fmt.Println("retrieving block from ", p.Headers[0])
 		b := BlockFromHeader(p.Headers[0])
