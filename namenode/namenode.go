@@ -8,14 +8,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	//	"math/rand"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	//	"time"
 
 	simplejson "github.com/bitly/go-simplejson"
 	. "github.com/pokerG/SisNoise/common"
@@ -209,10 +207,6 @@ func BKD_Hash(c []byte) uint32 {
 	return ans
 }
 
-//init of consistent
-//func Ini_consistent(){
-//	consistent=NewConsisten();
-//}
 
 // AssignBlocks chooses a datanode which balances the load across nodes for a block and enqueues
 // the block for distribution
@@ -228,10 +222,9 @@ func AssignBlock(b Block) (Packet, error) {
 		return *p, errors.New("Cannot distribute Block, no datanodes are connected")
 	}
 
-	// Create Packet and send block
 	p.SRC = id
 	p.CMD = BLOCK
-	consistent = NewConsisten()
+	
 
 	//Random load balancing
 	nodeIDs := make([]string, len(datanodemap), len(datanodemap))
@@ -243,7 +236,7 @@ func AssignBlock(b Block) (Packet, error) {
 		nodeIDs[i] = v.ID
 
 		i++
-		consistent.Add(v.ID)
+	//	consistent.Add(v.ID)
 	}
 	//ToDo Hash  & backup in different node
 	//	rand.Seed(time.Now().UTC().UnixNano())
@@ -557,11 +550,39 @@ func CheckConnection(conn net.Conn, p Packet) {
 		sendMapLock.Lock()
 		sendMap[p.SRC] = json.NewEncoder(conn)
 		sendMapLock.Unlock()
+
+		WriteToFile()
+
 		dn = datanodemap[p.SRC]
+		consistent.Add(dn.ID)
 	}
 	HandlePacket(p)
 }
-
+//get current's datanode and write their ID to file
+func WriteToFile(){
+		fmt.Println("ready to add here!!!")
+//		fin,err:=os.Open(metadatapath+"/datanode1")
+//		if err!=nil {
+//			err=os.Remove(metadatapath+"/datanode1")
+//			fin,err=os.Create(metadatapath+"/datanode1")
+//		}
+		cnt:=1
+		var last string = ""
+		for _,v:= range datanodemap {
+			cnt++
+			if v.connected==false {
+				continue
+			}
+			tmp:=v.ID+"\r\n"
+			last=last+tmp
+			fmt.Println("write"+tmp)
+//			fin.Write([]byte(tmp))
+		}
+		fmt.Println("last "+last)
+		ioutil.WriteFile(metadatapath+"/datanode1",[]byte(last),0666)
+		fmt.Println(cnt)
+//		fin.Close()
+}
 // Handle Connection initializes the connection and performs packet retrieval
 func HandleConnection(conn net.Conn) {
 
@@ -586,6 +607,9 @@ func HandleConnection(conn net.Conn) {
 			}
 			fmt.Println("Datanode ", dn.ID, " disconnected!")
 			dn.connected = false
+
+			consistent.Remove(dn.ID)
+			WriteToFile()
 			return
 		}
 		HandlePacket(p)
@@ -809,15 +833,17 @@ func Init(configpath string) {
 	if err != nil {
 		log.Fatal("Fatal error ", err.Error())
 	}
-
 	// setup filesystem
 	root = &filenode{"/", nil, make([]*filenode, 0, 1)}
 	filemap = make(map[string]map[int][]BlockHeader)
 	err = os.Chdir(metadatapath)
+	
 	if os.IsNotExist(err) {
 		os.Mkdir(metadatapath, 0700)
 		os.Create(metadatapath + "/meta")
 		os.Create(metadatapath + "/datanode")
+		os.Create(metadatapath + "/datanode1")
+
 		jsonStr := "{\"/\":[]}"
 		fsTree, _ = simplejson.NewJson([]byte(jsonStr))
 		b, _ := fsTree.MarshalJSON()
@@ -825,7 +851,41 @@ func Init(configpath string) {
 	} else {
 		ParseCatalogue(metadatapath + "/meta")
 	}
+	fmt.Println("start init")
+	
+	consistent=NewConsisten()
 
+//	fin,erro:=os.Open(metadatapath+"/datanode1")
+//	fmt.Println(erro)
+//	if erro!=nil {
+//		fmt.Println("create new file")
+//		fin,erro=os.Create(metadatapath+"/dataddnode1")
+//	}
+	
+//	buf:=make([]byte,1024)
+	buf,_:=ioutil.ReadFile(metadatapath+"/datanode1")
+	name:=strings.Split(string(buf),"\n")
+	length:=len(name)
+	for i:=0;i<length-1;i++ {
+		fmt.Println(name[i])
+		consistent.Add(name[i])
+	}
+//	for{
+//		n,_:=fin.Read(buf)
+//		if n==0 {
+//			break
+//		}
+//		name:=strings.Split(string(buf),"\n")
+//		length:=len(name)
+//		for i:=0;i<length-1;i++ {
+//			fmt.Println(name[i])
+//			consistent.Add(name[i])
+//		}
+//	}
+//	fin.Close()
+
+
+	
 	// setup communication
 	headerChannel = make(chan BlockHeader)
 	sendChannel = make(chan Packet)
