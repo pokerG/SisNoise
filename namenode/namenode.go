@@ -8,14 +8,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	//	"math/rand"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	//	"time"
 
 	simplejson "github.com/bitly/go-simplejson"
 	. "github.com/pokerG/SisNoise/common"
@@ -209,10 +207,6 @@ func BKD_Hash(c []byte) uint32 {
 	return ans
 }
 
-//init of consistent
-//func Ini_consistent(){
-//	consistent=NewConsisten();
-//}
 
 // AssignBlocks chooses a datanode which balances the load across nodes for a block and enqueues
 // the block for distribution
@@ -491,12 +485,29 @@ func CheckConnection(conn net.Conn, p Packet) {
 		sendMapLock.Lock()
 		sendMap[p.SRC] = json.NewEncoder(conn)
 		sendMapLock.Unlock()
+
+		WriteToFile()
+
 		dn = datanodemap[p.SRC]
 		consistent.Add(dn.ID)
 	}
 	HandlePacket(p)
 }
-
+//get current's datanode and write their ID to file
+func WriteToFile(){
+		fin,err:=os.Open(metadatapath+"/datanode1")
+		if err!=nil {
+			fin,err=os.Create(metadatapath+"/datanode1")
+		}
+		for _,v:= range datanodemap {
+			if v.connected==false {
+				continue
+			}
+			tmp:=v.ID+"\r\n"
+			fin.Write([]byte(tmp))
+		}
+		fin.Close()
+}
 // Handle Connection initializes the connection and performs packet retrieval
 func HandleConnection(conn net.Conn) {
 
@@ -523,7 +534,7 @@ func HandleConnection(conn net.Conn) {
 			dn.connected = false
 
 			consistent.Remove(dn.ID)
-
+			WriteToFile()
 			return
 		}
 		HandlePacket(p)
@@ -704,15 +715,17 @@ func Init(configpath string) {
 	if err != nil {
 		log.Fatal("Fatal error ", err.Error())
 	}
-	consistent = NewConsisten();
 	// setup filesystem
 	root = &filenode{"/", nil, make([]*filenode, 0, 1)}
 	filemap = make(map[string]map[int][]BlockHeader)
 	err = os.Chdir(metadatapath)
+	
 	if os.IsNotExist(err) {
 		os.Mkdir(metadatapath, 0700)
 		os.Create(metadatapath + "/meta")
 		os.Create(metadatapath + "/datanode")
+
+
 		jsonStr := "{\"/\":[]}"
 		fsTree, _ = simplejson.NewJson([]byte(jsonStr))
 		b, _ := fsTree.MarshalJSON()
@@ -720,7 +733,30 @@ func Init(configpath string) {
 	} else {
 		ParseCatalogue(metadatapath + "/meta")
 	}
+	
+	consistent=NewConsisten()
 
+	fin,erro:=os.Open(metadatapath+"/datanode1")
+	if erro!=nil {
+		fmt.Println("create new file")
+		fin,erro=os.Open(metadatapath+"/datanode1")
+	}
+	buf:=make([]byte,1024)
+	for{
+		n,_:=fin.Read(buf)
+		if n==0 {
+			break
+		}
+		name:=strings.Split(string(buf),"\n")
+		length:=len(name)
+		for i:=0;i<length-1;i++ {
+			consistent.Add(name[i])
+		}
+	}
+	fin.Close()
+
+
+	
 	// setup communication
 	headerChannel = make(chan BlockHeader)
 	sendChannel = make(chan Packet)
