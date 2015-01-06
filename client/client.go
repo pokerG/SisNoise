@@ -95,7 +95,7 @@ func BlockHeadersFromFile(localname, remotename string) []BlockHeader {
 
 		}
 
-		h := BlockHeader{"", remotename, n, blocknum, numblocks, 0}
+		h := BlockHeader{"", remotename, n, blocknum, numblocks, 0, time.Now().Unix()}
 
 		// load balance via roundrobin
 		blocknum++
@@ -142,6 +142,8 @@ func DistributeBlocksFromFile(localname, remotename string) error {
 
 	num := 0
 
+	timestamp := time.Now().Unix()
+
 	for num < total {
 
 		// read a chunk from file into Block data buffer
@@ -165,7 +167,7 @@ func DistributeBlocksFromFile(localname, remotename string) error {
 			remotename = "/" + remotename
 		}
 
-		h := BlockHeader{"", remotename, n, num, total, 0}
+		h := BlockHeader{"", remotename, n, num, total, 0, timestamp}
 
 		data := make([]byte, 0, n)
 		data = w.Bytes()[0:n]
@@ -236,7 +238,7 @@ func RemoveFile(remotename string) {
 	p.SRC = id
 	p.CMD = GETHEADERS
 	p.Headers = make([]BlockHeader, 1, 1)
-	p.Headers[0] = BlockHeader{"", remotename, 0, 0, 0, 0}
+	p.Headers[0] = BlockHeader{"", remotename, 0, 0, 0, 0, 0}
 	encoder.Encode(*p)
 
 	// get header list
@@ -302,7 +304,7 @@ func RetrieveFile(localname, remotename string) {
 	p.SRC = id
 	p.CMD = GETHEADERS
 	p.Headers = make([]BlockHeader, 1, 1)
-	p.Headers[0] = BlockHeader{"", remotename, 0, 0, 0, 0}
+	p.Headers[0] = BlockHeader{"", remotename, 0, 0, 0, 0, 0}
 	encoder.Encode(*p)
 
 	// get header list

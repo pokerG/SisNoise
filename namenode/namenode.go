@@ -485,7 +485,9 @@ func HandlePacket(p Packet) {
 			numBlocks := blockMap[0][0].NumBlocks
 
 			headers := make([]BlockHeader, numBlocks, numBlocks)
-		hs:
+
+			var lasttime int64 //use the latest update file
+
 			for i, _ := range headers {
 
 				_, ok = blockMap[i]
@@ -494,15 +496,22 @@ func HandlePacket(p Packet) {
 					r.Message = "Could not find needed block in file "
 					break
 				}
-				for j := 0; j < backups; j++ {
-					if datanodemap[blockMap[i][j].DatanodeID].connected {
-						headers[i] = blockMap[i][j] // grab the first available BlockHeader for each block number
-						continue hs
+				j := -1
+				for k, v := range blockMap[i] {
+					if datanodemap[v.DatanodeID].connected {
+						if v.ModifyTime >= lasttime {
+							lasttime = v.ModifyTime
+							j = k
+						}
 					}
 				}
-				r.CMD = ERROR
+				if j == -1 {
+					continue
+				}
+				headers[i] = blockMap[i][j]
+				/*r.CMD = ERROR
 				r.Message = "Could not find neededblock in file"
-				break
+				break*/
 
 			}
 			r.Headers = headers

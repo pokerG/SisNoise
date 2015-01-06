@@ -45,7 +45,7 @@ type BlockHeader struct {
 	BlockNum   int    // the 0 indexed position of Block within file
 	NumBlocks  int    // total number of Blocks in file
 	Priority   int    //the using priority in back-up
-//	ModifyTime string //the latest update time
+	ModifyTime int64  //the latest update time
 }
 
 // Packets are sent over the network
@@ -69,5 +69,3 @@ func (e *errorString) Error() string {
 func New(text string) error {
 	return &errorString{text}
 }
-
-
