@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Config Options
@@ -614,8 +615,6 @@ func ParseConfigXML(configpath string) error {
 
 		switch o.Key {
 		// single client for now
-		case "id":
-			id = o.Value
 		case "serverhost":
 			serverhost = o.Value
 		case "serverport":
@@ -642,7 +641,7 @@ func ParseConfigXML(configpath string) error {
 func Run(configpath string) {
 
 	ParseConfigXML(configpath)
-
+	id = "C#" + time.Now().String()
 	conn, err := net.Dial("tcp", serverhost+":"+serverport)
 	CheckError(err)
 
