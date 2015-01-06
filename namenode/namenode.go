@@ -606,11 +606,11 @@ func WriteToFile() {
 		if v.connected == false {
 			continue
 		}
-		tmp := v.ID + "\r\n"
+		tmp := v.ID
 		last = last + tmp
 		fmt.Println("write datanode:" + tmp)
 	}
-	ioutil.WriteFile(metadatapath+"/datanode1", []byte(last), 0666)
+	ioutil.WriteFile(metadatapath+"/datanode", []byte(last), 0666)
 }
 
 // Handle Connection initializes the connection and performs packet retrieval
