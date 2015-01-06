@@ -12,11 +12,11 @@ func TestSingleInsert(t *testing.T) {
 	root = &filenode{"/", nil, make([]*filenode, 0, 5)}
 	datanodemap = make(map[string]*datanode)
 
-	dn1 := datanode{"DN1", true, 0}
+	dn1 := datanode{"DN1", true, 0, true}
 	datanodemap["DN1"] = &dn1
 
 	// Test a file that exists
-	inh := BlockHeader{"DN1", "/out.txt", 1, 0, 1}
+	inh := BlockHeader{"DN1", "/out.txt", 1, 0, 1, 0}
 	MergeNode(inh)
 	_, ok := filemap["/out.txt"]
 	if !ok {
@@ -30,12 +30,12 @@ func TestMultipleInsertsSameFile(t *testing.T) {
 	root = &filenode{"/", nil, make([]*filenode, 0, 5)}
 	datanodemap = make(map[string]*datanode)
 
-	dn1 := datanode{"DN1", true, 0}
+	dn1 := datanode{"DN1", true, 0, true}
 	datanodemap["DN1"] = &dn1
 
 	// Test handling multiple blocks
-	inh1 := BlockHeader{"DN1", "/out.txt", 1, 0, 2}
-	inh2 := BlockHeader{"DN1", "/out.txt", 1, 1, 2}
+	inh1 := BlockHeader{"DN1", "/out.txt", 1, 0, 2, 0}
+	inh2 := BlockHeader{"DN1", "/out.txt", 1, 1, 2, 0}
 
 	err := MergeNode(inh1)
 	if err != nil {
@@ -83,10 +83,10 @@ func TestDuplicateInsert(t *testing.T) {
 	root = &filenode{"/", nil, make([]*filenode, 0, 5)}
 	datanodemap = make(map[string]*datanode)
 
-	dn1 := datanode{"DN1", true, 0}
+	dn1 := datanode{"DN1", true, 0, true}
 	datanodemap["DN1"] = &dn1
 
-	inh := BlockHeader{"DN1", "/out.txt", 1, 0, 1}
+	inh := BlockHeader{"DN1", "/out.txt", 1, 0, 1, 0}
 	err := MergeNode(inh)
 
 	if err != nil {
