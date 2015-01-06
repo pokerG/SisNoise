@@ -225,7 +225,6 @@ func AssignBlock(b Block) (Packet, error) {
 	p.SRC = id
 	p.CMD = BLOCK
 
-	//Random load balancing
 	nodeIDs := make([]string, len(datanodemap), len(datanodemap))
 	i := 0
 	for _, v := range datanodemap {
@@ -237,11 +236,10 @@ func AssignBlock(b Block) (Packet, error) {
 		i++
 		//	consistent.Add(v.ID)
 	}
-	//ToDo Hash  & backup in different node
-	//	rand.Seed(time.Now().UTC().UnixNano())
+	sort.Strings(nodeIDs)
+
 	hashid := BKD_Hash(b.Data)
 	nodeindex := (consistent).Search(hashid)
-	//	nodeindex := rand.Intn(len(nodeIDs))
 	p.DST = nodeIDs[(nodeindex+b.Header.Priority)%len(datanodemap)]
 	b.Header.DatanodeID = p.DST
 
@@ -615,7 +613,7 @@ func WriteToFile() {
 		if v.connected == false {
 			continue
 		}
-		tmp := v.ID
+		tmp := v.ID + "\r\n"
 		last = last + tmp
 		fmt.Println("write datanode:" + tmp)
 	}
