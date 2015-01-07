@@ -9,6 +9,6 @@ ToDo List
 
 *   ~~Put & Get whole catalogue~~
 *   ~~List catalogue~~
-*   Multi Client problem
-*   Delete catalogue or file
-*   Multi back-up copy
+*   ~~Multi Client problem~~
+*   ~~Delete catalogue or file~~
+*   ~~Multi back-up copy~~
